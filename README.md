@@ -16,6 +16,8 @@ UI instructions only
 Refs
 https://github.com/jeremycook123/devops-webapp2
 
+Note: see commit [29eaa64](https://github.com/jeremycook123/devops-webapp2/tree/29eaa64fdd4b2a4f06ded4c68dfe0725984e9b03)
+
 ```
 whoami
 date
@@ -43,12 +45,12 @@ pipeline {
       parallel {
         stage('Build') {
           steps {
-            sh '''RELEASE=webapp.war
+            sh '''whoami
+date
+echo $PATH
 pwd
-./gradlew build -PwarName=$RELEASE --info
-ls -la build/libs/
-cp ./build/libs/$RELEASE ./docker
-'''
+ls -la
+./gradlew build --info'''
           }
         }
         stage('P1') {
@@ -65,28 +67,9 @@ echo run parallel!!'''
         }
       }
     }
-    stage('Packaging') {
-      steps {
-        sh '''pwd
-cd ./docker
-docker build -t cloudacademydevops/webapp1-2019:$BUILD_ID .
-docker tag cloudacademydevops/webapp1-2019:$BUILD_ID cloudacademydevops/webapp1-2019:latest
-docker images
-'''
-      }
-    }
     stage('Publish') {
       steps {
-        script {
-          withCredentials([usernamePassword(credentialsId: 'ca-dockerhub', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]){
-            sh '''
-docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
-docker push cloudacademydevops/webapp1-2019:$BUILD_ID
-docker push cloudacademydevops/webapp1-2019:latest
-'''
-          }
-        }
-
+        archiveArtifacts(artifacts: 'build/libs/*.war', fingerprint: true, onlyIfSuccessful: true)
       }
     }
   }
@@ -177,3 +160,75 @@ pipeline {
 }
 ```
 
+## Demo 11: Blue Ocean - Build Package and Publish Docker Image to Docker Hub
+
+Refs
+https://github.com/jeremycook123/devops-webapp2
+
+```
+pipeline {
+  agent {
+    node {
+      label 'agent1'
+    }
+
+  }
+  stages {
+    stage('Clone') {
+      steps {
+        git(url: 'https://github.com/jeremycook123/devops-webapp2', branch: 'master')
+      }
+    }
+    stage('Build') {
+      parallel {
+        stage('Build') {
+          steps {
+            sh '''RELEASE=webapp.war
+pwd
+./gradlew build -PwarName=$RELEASE --info
+ls -la build/libs/
+cp ./build/libs/$RELEASE ./docker
+'''
+          }
+        }
+        stage('P1') {
+          steps {
+            sh '''date
+echo run parallel!!'''
+          }
+        }
+        stage('P2') {
+          steps {
+            sh '''date
+echo run parallel!!'''
+          }
+        }
+      }
+    }
+    stage('Packaging') {
+      steps {
+        sh '''pwd
+cd ./docker
+docker build -t cloudacademydevops/webapp1-2019:$BUILD_ID .
+docker tag cloudacademydevops/webapp1-2019:$BUILD_ID cloudacademydevops/webapp1-2019:latest
+docker images
+'''
+      }
+    }
+    stage('Publish') {
+      steps {
+        script {
+          withCredentials([usernamePassword(credentialsId: 'ca-dockerhub', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]){
+            sh '''
+docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
+docker push cloudacademydevops/webapp1-2019:$BUILD_ID
+docker push cloudacademydevops/webapp1-2019:latest
+'''
+          }
+        }
+
+      }
+    }
+  }
+}
+```
